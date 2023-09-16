@@ -16,7 +16,7 @@ from PIL import Image
 
 # CONSTANTS
 batch_size = 64
-Nepochs = 5
+Nepochs = 3
 homeDir = r"C:\Users\Asus\Documents\Coding\Python\Machine Learning\ShapeRecognitionCNN"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -49,25 +49,28 @@ if __name__ == "__main__":
     fit(model,train_data_loader,valid_data_loader,Nepochs,0.005)
 
     ### Test on a specific image
-    simple_transform = transforms.Compose([transforms.Resize((64, 64))
-                                        ,transforms.ToTensor()
-                                        ,transforms.Normalize(
-                                            [0.485, 0.456, 0.406],
-                                            [0.229, 0.224, 0.225])
-                                        ])
     
     # Load and preprocess the specific image
-
     images = [homeDir + r'\images\valid\circle\3.png',
               homeDir + r'\images\valid\square\0.png',
               homeDir + r'\images\valid\star\1.png',
               homeDir + r'\images\valid\triangle\1.png',
-              homeDir + r'\testImages\circle.jpg',
-              homeDir + r'\testImages\square.jpg',]
+              homeDir + r'\testImages\circle.png',
+              homeDir + r'\testImages\square.png',]
     for image_path in images:
-        print("Currently at image:\n ", image_path)
+        print("\nCurrently at image:\n ", image_path)
         image = Image.open(image_path)
-        input_tensor = simple_transform(image)
+        # Perform necessary transformations
+        transform = transforms.Compose([transforms.Resize((64, 64))
+                                        ,transforms.ToTensor()
+                                        ])
+        input_tensor = transform(image) 
+        if input_tensor.size(0) == 1:  # Check if the image has only 1 channel
+            input_tensor = torch.cat([input_tensor] * 3)  # Convert to 3 channels (grayscale to RGB)
+        normalize = transforms.Normalize(
+                            mean = [0.485, 0.456, 0.406],
+                            std = [0.229, 0.224, 0.225])
+        input_tensor = normalize(input_tensor)
         input_batch = input_tensor.unsqueeze(0)  # Add a batch dimension
         input_batch = input_batch.to('cuda')
 
@@ -77,7 +80,7 @@ if __name__ == "__main__":
         with torch.no_grad():
             output = model(input_batch)
         # Interpret the output (e.g., for classification)
-        print("Output:",output)
+        print("Output:", F.softmax(output, dim=1))
         _, predicted_class = output.max(1)
 
         # Print the predicted class
